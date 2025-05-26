@@ -83,9 +83,10 @@ def generate_token():
     agora_role = 1 if role == "publisher" else 2
 
     # 🎫 Generate token
-    token = RtcTokenBuilder.buildTokenWithUid(
-        APP_ID, APP_CERTIFICATE, channel_name, int(uid), agora_role, privilege_expire_ts
+    token = RtcTokenBuilder.buildTokenWithAccount(
+        APP_ID, APP_CERTIFICATE, channel_name, uid, agora_role, privilege_expire_ts
     )
+
 
     return jsonify({"token": token})
 
