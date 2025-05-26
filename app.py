@@ -1,21 +1,20 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 from agora_token_builder import RtcTokenBuilder
 from google.cloud import firestore
 from google.oauth2 import service_account
 import firebase_admin
 from firebase_admin import credentials, auth
 import time
-from flask_cors import CORS
 
 app = Flask(__name__)
-CORS(app, origins="*")  # Allow all origins for now; restrict later if needed
-
+CORS(app, origins="*", supports_credentials=True)
 
 # 🔐 Agora credentials
 APP_ID = "3501bf7b9ccf45eb91524782efc6e3dc"
 APP_CERTIFICATE = "5567c6e7b55e416aab0a4739d5a7d522"
 
-# 🔐 Firebase Admin Initialization (safe)
+# 🔐 Firebase Admin Initialization
 cred = credentials.Certificate("firebase-adminsdk.json")
 if not firebase_admin._apps:
     firebase_admin.initialize_app(cred)
@@ -24,7 +23,12 @@ if not firebase_admin._apps:
 gcp_credentials = service_account.Credentials.from_service_account_file("firebase-adminsdk.json")
 db = firestore.Client(credentials=gcp_credentials, project=gcp_credentials.project_id)
 
-# 🔍 Firebase Auth verifier
+# 🩺 Root route to prevent Render from showing 404 on /
+@app.route("/", methods=["GET"])
+def index():
+    return "✅ Token backend is running!"
+
+# 🔐 Firebase ID Token Verifier
 def verify_firebase_user():
     auth_header = request.headers.get("Authorization", "")
     if not auth_header.startswith("Bearer "):
@@ -37,8 +41,8 @@ def verify_firebase_user():
         print("❌ Firebase Auth Failed:", e)
         return None
 
-# 🎯 Token Generation Route
-@app.route("/generate-token", methods=["POST"])
+# 🎯 Token generation endpoint
+@app.route("/generate-token", methods=["POST", "OPTIONS"])
 def generate_token():
     user = verify_firebase_user()
     if not user:
@@ -55,8 +59,8 @@ def generate_token():
     if user["uid"] != uid:
         return jsonify({"error": "UID mismatch"}), 403
 
-    # ✅ Check if this user is part of this session
     try:
+        # Only allow token generation if user is part of that session
         session_ref = db.collection("users").document(uid).collection("sessionHistory").document(channel_name)
         session_doc = session_ref.get()
 
@@ -66,19 +70,18 @@ def generate_token():
         print("❌ Firestore error:", e)
         return jsonify({"error": "Session validation failed"}), 500
 
-    # ⏳ Token valid for 3 minutes (join window)
-    expire_seconds = 180  # 3 minutes to join
+    # ⏳ Token valid for 3 minutes
     current_ts = int(time.time())
+    expire_seconds = 180
     privilege_expire_ts = current_ts + expire_seconds
     agora_role = 1 if role == "publisher" else 2
 
-    # 🪙 Generate token
     token = RtcTokenBuilder.buildTokenWithUid(
         APP_ID, APP_CERTIFICATE, channel_name, int(uid), agora_role, privilege_expire_ts
     )
 
     return jsonify({ "token": token })
 
-# ✅ For local testing only
+# 🔧 Local test only
 if __name__ == "__main__":
     app.run(debug=True)
