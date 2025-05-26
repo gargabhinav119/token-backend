@@ -5,8 +5,11 @@ from google.oauth2 import service_account
 import firebase_admin
 from firebase_admin import credentials, auth
 import time
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app, origins="*")  # Allow all origins for now; restrict later if needed
+
 
 # 🔐 Agora credentials
 APP_ID = "3501bf7b9ccf45eb91524782efc6e3dc"
