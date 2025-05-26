@@ -4,3 +4,4 @@ agora-token-builder
 google-cloud-firestore
 google-auth
 gunicorn
+flask-cors
