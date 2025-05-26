@@ -2,4 +2,5 @@ flask
 firebase-admin
 agora-token-builder
 google-cloud-firestore
+google-auth
 gunicorn
