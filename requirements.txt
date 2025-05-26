@@ -1,0 +1,5 @@
+flask
+firebase-admin
+agora-token-builder
+google-cloud-firestore
+gunicorn
